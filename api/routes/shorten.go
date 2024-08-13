@@ -69,8 +69,8 @@ func handleRateLimiting(rdb *redis.Client, ip string) (time.Duration, error) {
 	} else {
 		valueInt, _ := strconv.Atoi(value)
 		if valueInt <= 0 {
-			limit, _ := rdb.TTL(database.Ctx, ip).Result()
-			return limit / time.Minute / time.Nanosecond, fmt.Errorf("rate limit exceeded")
+			limit, _ := getRateLimitReset(rdb, ip)
+			return limit, fmt.Errorf("rate limit exceeded")
 		}
 	}
 	return 0, nil
