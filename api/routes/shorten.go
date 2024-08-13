@@ -56,7 +56,7 @@ func ShortenURL(c *fiber.Ctx) error {
 
 	response, err := createResponse(rRequestLimitCounter, req, id, c.IP())
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not create response"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(response)
