@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/0mwa/go-url-shortener/database"
+	"github.com/0mwa/go-url-shortener/helpers"
+	"github.com/asaskevich/govalidator"
 	"github.com/go-redis/redis/v8"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -42,6 +44,10 @@ func ShortenURL(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error(), "rate_limit": limit})
 	}
 
+	if status, err := validateURL(&req); err != nil {
+		return c.Status(status).JSON(fiber.Map{"error": err.Error()})
+	}
+
 	id := generateShortId(req.CustomShort)
 
 	if err := saveURLInRedis(rDatabase, id, req.URL, &req); err != nil {
@@ -68,6 +74,19 @@ func handleRateLimiting(rdb *redis.Client, ip string) (time.Duration, error) {
 		}
 	}
 	return 0, nil
+}
+
+func validateURL(req *Request) (int, error) {
+	if !govalidator.IsURL(req.URL) {
+		return fiber.StatusBadRequest, fmt.Errorf("invalid URL")
+	}
+
+	if !helpers.DomainError(req.URL) {
+		return fiber.StatusInternalServerError, fmt.Errorf("domain error")
+	}
+
+	req.URL = helpers.EnforceHTTP(req.URL)
+	return fiber.StatusOK, nil
 }
 
 func generateShortId(customShort string) string {
