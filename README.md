@@ -8,8 +8,6 @@
     <p>A lightweight URL shortener service built using Go, Redis, and Fiber. This service allows you to shorten URLs, customize short URLs, and set expiration times for each shortened link. It also includes rate limiting to prevent abuse.</p>
 </div>
 
-<br>
-
 ## Running Service 
 
 Clone repository
@@ -22,8 +20,6 @@ Run docker-compose
 docker-compose up -d --build
 ```
 
-<br>
-
 ## API Endpoints
 
 ### Shorten URL
@@ -34,7 +30,7 @@ POST https://localhost:3000/api/v1/
 ```
 
 Request Body
-```JSON
+```
 {
   "url": "https://example.com",
   "short": "customShort",   // Optional
@@ -43,7 +39,7 @@ Request Body
 ```
 
 Response Body
-```JSON
+```
 {
   "url": "https://example.com",
   "short": "localhost:3000/customShort",
