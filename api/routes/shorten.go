@@ -50,6 +50,10 @@ func ShortenURL(c *fiber.Ctx) error {
 
 	id := generateShortId(req.CustomShort)
 
+	if status, err := checkShortIdExists(rDatabase, id); err != nil {
+		return c.Status(status).JSON(fiber.Map{"error": err.Error()})
+	}
+
 	if err := saveURLInRedis(rDatabase, id, req.URL, &req); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -94,6 +98,17 @@ func generateShortId(customShort string) string {
 		return customShort
 	}
 	return uuid.New().String()[:6]
+}
+
+func checkShortIdExists(rdb *redis.Client, id string) (int, error) {
+	value, err := rdb.Get(database.Ctx, id).Result()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return fiber.StatusInternalServerError, fmt.Errorf("error checking short ID existence")
+	}
+	if value != "" {
+		return fiber.StatusForbidden, fmt.Errorf("shortened URL already exists")
+	}
+	return fiber.StatusOK, nil
 }
 
 func saveURLInRedis(rdb *redis.Client, id string, url string, req *Request) error {
