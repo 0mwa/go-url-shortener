@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"errors"
 	"fmt"
 	"github.com/0mwa/go-url-shortener/database"
 	"github.com/go-redis/redis/v8"
@@ -37,6 +38,10 @@ func ShortenURL(c *fiber.Ctx) error {
 	rDatabase := database.NewRedisClient(0)
 	defer rDatabase.Close()
 
+	if limit, err := handleRateLimiting(rRequestLimitCounter, c.IP()); err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error(), "rate_limit": limit})
+	}
+
 	id := generateShortId(req.CustomShort)
 
 	if err := saveURLInRedis(rDatabase, id, req.URL, &req); err != nil {
@@ -49,6 +54,20 @@ func ShortenURL(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(response)
+}
+
+func handleRateLimiting(rdb *redis.Client, ip string) (time.Duration, error) {
+	value, err := rdb.Get(database.Ctx, ip).Result()
+	if errors.Is(err, redis.Nil) {
+		_ = rdb.Set(database.Ctx, ip, os.Getenv("API_QUOTA"), 30*time.Minute).Err()
+	} else {
+		valueInt, _ := strconv.Atoi(value)
+		if valueInt <= 0 {
+			limit, _ := rdb.TTL(database.Ctx, ip).Result()
+			return limit / time.Minute / time.Nanosecond, fmt.Errorf("rate limit exceeded")
+		}
+	}
+	return 0, nil
 }
 
 func generateShortId(customShort string) string {
